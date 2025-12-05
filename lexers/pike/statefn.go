@@ -1,4 +1,4 @@
-package lexer
+package pike
 
 import (
 	"strings"

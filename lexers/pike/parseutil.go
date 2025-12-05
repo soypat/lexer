@@ -1,4 +1,4 @@
-package lexer
+package pike
 
 import "unicode"
 
@@ -15,7 +15,7 @@ func isNumericalStartToken(r rune) bool {
 }
 
 func isOperator(r rune) bool {
-	return r== '+' || r == '-' || r == '*' || r == '/' || r== '^' || r==':'
+	return r == '+' || r == '-' || r == '*' || r == '/' || r == '^' || r == ':'
 }
 
 func isSeparator(r rune) bool {
@@ -27,7 +27,7 @@ func isNumericalToken(r rune) bool {
 }
 
 func isASCIIAlpha(r rune) bool {
-	return (r >= 'a' && r<= 'z') || (r >= 'A' && r <= 'Z')
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
 
 func isASCIIAlphaNumeric(r rune) bool {
