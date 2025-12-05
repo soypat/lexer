@@ -1,4 +1,4 @@
-package lexer
+package pike
 
 import (
 	"fmt"
@@ -17,7 +17,6 @@ func (i Item) String() string {
 	}
 	return fmt.Sprintf("%q", i.val)
 }
-
 
 // Generated with https://godoc.org/golang.org/x/tools/cmd/stringer
 // stringer -type=ItemType -output

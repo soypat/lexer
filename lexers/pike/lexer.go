@@ -1,4 +1,4 @@
-package lexer
+package pike
 
 import (
 	"fmt"
@@ -47,6 +47,7 @@ type Item struct {
 
 // Identifier types. Variables and functions (keywords?)
 type idType int
+
 const (
 	idError idType = iota
 	idUndefined
@@ -73,11 +74,10 @@ type lexer struct {
 	metaStack   Stack
 }
 
-
 // Creates new lexer with a name for error formatting
 // and gives it an input string to lex
 func NewStringLexer(name, input string) *lexer {
-	return lex(name,input)
+	return lex(name, input)
 }
 
 // run lexes the input by executing state functions until
@@ -95,11 +95,11 @@ func (l *lexer) ItemChannel() (items <-chan Item) {
 
 // Creates new variable identifier for lexer
 // if variable already exists throws error
-func (l *lexer)NewVariableID(value string) error {
+func (l *lexer) NewVariableID(value string) error {
 	if l.getIDType(value) != idUndefined {
 		return fmt.Errorf("Variable already exists")
 	}
-	l.idAdd(identifier{typ:idVar,val:value})
+	l.idAdd(identifier{typ: idVar, val: value})
 	return nil
 }
 
@@ -109,7 +109,7 @@ func (l *lexer) NewFunctionID(value string) error {
 	if l.getIDType(value) != idUndefined {
 		return fmt.Errorf("Function already exists")
 	}
-	l.idAdd(identifier{typ:idFunc,val:value})
+	l.idAdd(identifier{typ: idFunc, val: value})
 	return nil
 }
 
@@ -117,19 +117,19 @@ func (l *lexer) NewFunctionID(value string) error {
 func (i *Item) Type() ItemType {
 	return i.typ
 }
+
 // returns item's value as read in input
 func (i *Item) Value() string {
 	return i.val
 }
 
-
 // lex creates a new scanner for the input string.
 func lex(name, input string) *lexer {
 	l := &lexer{
-		name:  name,
-		input: input,
-		state: lexStart,
-		items: make(chan Item, 2), // Two items sufficient.
+		name:        name,
+		input:       input,
+		state:       lexStart,
+		items:       make(chan Item, 2), // Two items sufficient.
 		identifiers: make(map[string]identifier),
 	}
 	return l
@@ -149,8 +149,6 @@ func (l *lexer) nextItem() Item {
 	}
 	panic("not reached")
 }
-
-
 
 // emit passes an Item back to the client.
 func (l *lexer) emit(t ItemType) {
@@ -173,8 +171,8 @@ func (l *lexer) next() (rune rune) {
 // terminates lexer and returns a formatted error message to lexer.items
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	msg := fmt.Sprintf(format, args)
-	start:=l.pos-10
-	if  start<0 {
+	start := l.pos - 10
+	if start < 0 {
 		start = 0
 	}
 	l.items <- Item{
@@ -184,6 +182,7 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	//panic("PANIC")
 	return nil
 }
+
 // ignore skips over the pending input before this point.
 func (l *lexer) ignore() {
 	l.start = l.pos
