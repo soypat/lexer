@@ -34,12 +34,15 @@ type Lexer struct {
 	ReuseLiteralBuffer bool
 }
 
+// LineCol returns the current line and column position in the source.
 func (l *Lexer) LineCol() LineCol {
 	return LineCol{Source: l.source, Line: l.line, Col: l.col}
 }
 
+// Pos returns the current byte offset in the source.
 func (l *Lexer) Pos() Pos { return Pos(l.pos) }
 
+// Err returns the lexer error, or nil if the error is EOF.
 func (l *Lexer) Err() error {
 	if l.err == io.EOF {
 		return nil
@@ -47,10 +50,13 @@ func (l *Lexer) Err() error {
 	return l.err
 }
 
+// IsDone returns true if the lexer has finished processing (error occurred and no current character).
 func (l *Lexer) IsDone() bool {
 	return l.err != nil && l.ch == 0
 }
 
+// Reset initializes the lexer with a new source name and reader.
+// It preserves ReuseLiteralBuffer and internal buffers across resets.
 func (l *Lexer) Reset(source string, r io.Reader) error {
 	if r == nil {
 		return errors.New("nil reader")
@@ -79,6 +85,8 @@ func (l *Lexer) Reset(source string, r io.Reader) error {
 	return l.err
 }
 
+// NextToken returns the next token, its starting byte position, and its literal value.
+// Returns TokEOF at end of input, TokIllegal on errors.
 func (l *Lexer) NextToken() (tok Token, start Pos, literal []byte) {
 	if l.source == "" {
 		l.err = errors.New("lexer uninitialized")
@@ -86,21 +94,14 @@ func (l *Lexer) NextToken() (tok Token, start Pos, literal []byte) {
 	}
 	l.skipWhitespace() // We skip early, not after tokenizing. This leads to more intuitive lexer behaviour.
 	start = l.Pos()
-	switch l.ch {
-	case 0:
+	tok = LookupSingleChar(l.ch)
+	if tok == TokIllegal {
 		if l.err == io.EOF {
 			tok = TokEOF
-		} else {
-			tok = TokIllegal
 		}
-	case '\n':
-		tok = TokNewline
-	case '(':
-		tok = TokLParen
-	case ')':
-		tok = TokRParen
+		return tok, start, nil
 	}
-	if tok != 0 {
+	if tok != TokIDENT {
 		// Single character case.
 		literal = utf8.AppendRune(l.idbuf[l.bufstart():], l.ch)
 		l.advance()
@@ -108,7 +109,7 @@ func (l *Lexer) NextToken() (tok Token, start Pos, literal []byte) {
 	}
 	// We have an identifier in our hands.
 	literal = l.readIdentifier()
-	tok = TokIDENT
+	tok = Lookup(string(literal)) // Should be optimized by compiler to not allocate.
 	return tok, start, literal
 }
 

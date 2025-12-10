@@ -7,11 +7,18 @@ import (
 	"strconv"
 )
 
+// LineCol represents a source location with file name, line, and column.
 type LineCol struct {
 	Source    string
 	Line, Col int
 }
 
+// String returns the location formatted as "source:line:col".
+func (lc LineCol) String() string {
+	return string(lc.AppendString(nil))
+}
+
+// AppendString appends the formatted location to b and returns the result.
 func (lc LineCol) AppendString(b []byte) []byte {
 	if b == nil {
 		b = make([]byte, 0, len(lc.Source)+3+3)
@@ -29,6 +36,7 @@ func (lc LineCol) AppendString(b []byte) []byte {
 	return b
 }
 
+// Pos represents a byte offset in the source.
 type Pos int
 
 // ToLineCol converts a byte offset to line:column.
