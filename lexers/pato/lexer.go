@@ -7,23 +7,15 @@ import (
 	"unicode/utf8"
 )
 
-type Token uint
-
-const (
-	TokUndefined Token = iota
-	TokIllegal
-	TokLParen
-	TokRParen
-	TokNewline
-	TokIDENT
-	TokEOF
-)
+// Peek length can be incremented in size and code should still work.
+const peeklen = 1
 
 type Lexer struct {
 	input  bufio.Reader
-	ch     rune    // current character.
-	peek   [1]rune // peek characters (utf8)
-	idbuf  []byte  // stores current identifier buildup.
+	ch     rune          // current character.
+	peek   [peeklen]rune // peek characters.
+	peeksz [peeklen]int  // size of individual peek characters.
+	idbuf  []byte        // stores current identifier buildup.
 	err    error
 	source string
 	// positional indices.
@@ -77,7 +69,6 @@ func (l *Lexer) Reset(source string, r io.Reader) error {
 	// Fill up peek and current character.
 	const buflen = len(l.peek)
 	l.col = -buflen + 1 // col is 1 based.
-	l.pos = -buflen
 	for range len(l.peek) {
 		l.advance() // fill peek buffer.
 	}
@@ -126,18 +117,18 @@ func (l *Lexer) advance() {
 	// Advance character buffer first, so even on EOF we don't lose the last char
 	currentIsNewline := l.ch == '\n'
 	l.ch = l.peek[0]
+	l.pos += l.peeksz[0]
 	for i := range len(l.peek) - 1 {
 		l.peek[i] = l.peek[i+1]
+		l.peeksz[i] = l.peeksz[i+1]
 	}
 	ch, sz, err := l.input.ReadRune()
-	if err != nil {
-		l.peek[len(l.peek)-1] = 0
-		l.err = err
-		return
+	if err != nil && l.err == nil {
+		l.err = err // Set first error encountered.
 	}
 	l.col++
-	l.pos += sz
 	l.peek[len(l.peek)-1] = ch
+	l.peeksz[len(l.peek)-1] = sz
 	if currentIsNewline {
 		l.line++
 		l.col = 1
