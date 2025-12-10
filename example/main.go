@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/soypat/lexer"
 	"os"
+
+	lex "github.com/soypat/lexer/lexers/pike"
 )
 
 const args = `@(X,U,t)`
@@ -11,9 +12,8 @@ const f = `[X(7);X(8);X(9);X(10);X(11);X(12);(U(1)*sin(U(2))*(cos(X(4))*sin(X(6)
 const f2 = `(U(1)*sin(U(2))*(cos(X(4))*sin(X(6))-cos(X(6))*sin(X(4))*sin(X(5))))/4+(U(1)*cos(U(3)+U(2))*(sin(X(4))*sin(X(6))+cos(X(4))*cos(X(6))*sin(X(5))))/4+(U(1)*cos(X(5))*cos(X(6))*sin(U(3)))/4`
 const fs = `U(X(4))*2`
 
-
 func main() {
-	if err := run(); err != nil{
+	if err := run(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -21,15 +21,14 @@ func main() {
 
 // actual program
 func run() error {
-	lexy := lexer.NewStringLexer("matlab func", f)
-
+	lexy := lex.NewStringLexer("matlabfunc.m", f)
 	// add identifiers
-	var variables = []string{"X","U"}
-	var functions = []string{"sin","cos"}
-	for _,v:= range variables {
+	var variables = []string{"X", "U"}
+	var functions = []string{"sin", "cos"}
+	for _, v := range variables {
 		_ = lexy.NewVariableID(v)
 	}
-	for _,v:= range functions {
+	for _, v := range functions {
 		_ = lexy.NewFunctionID(v)
 	}
 	// lexer pushes item tokens to channel. parse picks em up

@@ -7,18 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-type Token uint
-
-const (
-	TokUndefined Token = iota
-	TokIllegal
-	TokLParen
-	TokRParen
-	TokNewline
-	TokIDENT
-	TokEOF
-)
-
 type Lexer struct {
 	input  bufio.Reader
 	ch     rune    // current character.
@@ -94,23 +82,14 @@ func (l *Lexer) NextToken() (tok Token, start Pos, literal []byte) {
 	}
 	l.skipWhitespace() // We skip early, not after tokenizing. This leads to more intuitive lexer behaviour.
 	start = l.Pos()
-	switch l.ch {
-	// Single-character token switch branch.
-	case 0:
+	tok = LookupSingleChar(l.ch)
+	if tok == TokIllegal {
 		if l.err == io.EOF {
 			tok = TokEOF
-		} else {
-			tok = TokIllegal
 		}
 		return tok, start, nil
-	case '\n':
-		tok = TokNewline
-	case '(':
-		tok = TokLParen
-	case ')':
-		tok = TokRParen
 	}
-	if tok != 0 {
+	if tok != TokIDENT {
 		// Single character case.
 		literal = utf8.AppendRune(l.idbuf[l.bufstart():], l.ch)
 		l.advance()
@@ -118,7 +97,7 @@ func (l *Lexer) NextToken() (tok Token, start Pos, literal []byte) {
 	}
 	// We have an identifier in our hands.
 	literal = l.readIdentifier()
-	tok = TokIDENT
+	tok = Lookup(string(literal)) // Should be optimized by compiler to not allocate.
 	return tok, start, literal
 }
 
