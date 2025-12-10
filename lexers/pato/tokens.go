@@ -1,5 +1,7 @@
 package pato
 
+import "fmt"
+
 //go:generate stringer -type=Token -linecomment -output stringers.go .
 
 type Token uint
@@ -37,10 +39,9 @@ var keywordMap [1 << 4]Token
 // kwhash is a perfect hash function for keywords.
 // It assumes that s has at least length 2.
 func kwhash(id string) uint {
-	// If you get collisions on adding a keyword you'll need to
-	// process more bytes of the identifier since this'll indicate
-	// two keywords share the same first two bytes.
-	// Best course of action is incrementing keyword map size or tuning the hash operations.
+	// See perfect_hash_test.go for information on how to search for a
+	// perfect hash function in cases where bit shifts add too little entropy
+	// and multiplication is needed.
 	return (uint(id[0])<<4 ^ uint(id[1]) + uint(len(id))) & uint(len(keywordMap)-1)
 }
 
@@ -49,7 +50,7 @@ func init() {
 	for tok := keywordBeg + 1; tok < keywordEnd; tok++ {
 		h := kwhash(tok.String())
 		if keywordMap[h] != 0 {
-			panic("imperfect hash")
+			panic(fmt.Sprintf("imperfect hash at %0x %s collides with %s (%d/%d ok)", h, keywordMap[h].String(), tok.String(), tok-keywordBeg-1, keywordEnd-keywordBeg-1))
 		}
 		keywordMap[h] = tok
 	}

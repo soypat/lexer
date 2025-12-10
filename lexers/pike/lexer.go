@@ -2,7 +2,6 @@ package pike
 
 import (
 	"fmt"
-	_ "fmt"
 	"strings"
 	"unicode/utf8"
 )
@@ -170,7 +169,7 @@ func (l *lexer) next() (rune rune) {
 
 // terminates lexer and returns a formatted error message to lexer.items
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	msg := fmt.Sprintf(format, args)
+	msg := fmt.Sprintf(format, args...)
 	start := l.pos - 10
 	if start < 0 {
 		start = 0
