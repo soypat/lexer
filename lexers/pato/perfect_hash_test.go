@@ -2,6 +2,7 @@ package pato
 
 import (
 	"errors"
+	"slices"
 	"testing"
 )
 
@@ -22,90 +23,65 @@ func TestFindPerfectHash(t *testing.T) {
 	}
 	t.Logf("Searching perfect hash for %d keywords", len(keywords))
 	attempts := 0
-	tableSizes := []uint{1 << 4, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10}
+	tableSizes := []int{4, 5, 6, 7, 8, 9, 10}
 	// Coefficients for perfect hash function.
 	// First coeficcient is length multiplication.
 	// This method of searching for a perfect hash is quite robust
 	// and works even with Fortran keywords (70+ keywords, ~20 sharing identical END start)
 	const maxCoef = 32
-	const onlyPow2Coefs = true
-	var coefs [3]uint
+	coefs := make([]Coef, 3)
+	for i := range len(coefs) {
+		coefs[i].IndexApplied = i
+		coefs[i].Op = TokPlus
+		coefs[i].OnlyPow2 = true // Beware: Is quite limiting when one has lots of keywords, but has performance benefits.
+	}
+	phf := PerfectHashFinder{
+		DefaultMaxCoef: maxCoef,
+	}
 	for _, tableSize := range tableSizes {
-		kwMap := make([]Token, tableSize)
-		t.Logf("Trying table size %d...", tableSize)
-		for i := range coefs {
-			coefs[i] = 1 // start all coefficients at 1.
+		phf.TableSizeBits = tableSize
+		t.Logf("Trying table size %d...", 1<<tableSize)
+		currentAttempt, err := phf.Search(coefs, keywords)
+		attempts += currentAttempt
+		if err != nil && err != ErrNoCoefficientsFound {
+			t.Fatal(err)
+		} else if err == nil {
+			t.Logf("FOUND with tableSize=%d after %d attempts! (%d total attempts)", tableSize, currentAttempt, attempts)
+			for i := range coefs {
+				t.Logf("coef%d=%d op=%s", i, coefs[i].Value, coefs[i].Op.String())
+			}
+			return
 		}
-		attempt := 0
-		for {
-			attempt++
-			mask := tableSize - 1
-			collision := false
-			clear(kwMap)
-			for i, kw := range keywords {
-				h := uint(len(kw)) * coefs[0]
-				for i := 1; i < len(coefs) && i < len(kw); i++ {
-					h += uint(kw[i-1]) * coefs[i]
-				}
-				h &= mask
-				tok := kwMap[h]
-				if tok != 0 {
-					collision = true
-					break
-				}
-				kwMap[h] = kwToks[i]
-			}
-			attempts++
-			if !collision {
-				t.Logf("FOUND with tableSize=%d after %d attempts! (%d total attempts)", tableSize, attempt+1, attempts)
-				t.Logf("%v", coefs)
-				return
-			}
-			for i := 0; coefs[i] == maxCoef; i++ {
 
-			}
-			if onlyPow2Coefs {
-				coefs[0] *= 2
-			} else {
-				coefs[0]++
-			}
-
-			for i := 0; coefs[i] == maxCoef && i < len(coefs)-1; i++ {
-				coefs[i] = 1
-				if onlyPow2Coefs {
-					coefs[i+1] *= 2
-				} else {
-					coefs[i+1]++
-				}
-			}
-			if coefs[len(coefs)-1] == maxCoef+1 {
-				break
-			}
-		}
 	}
 	t.Error("No perfect hash found after", attempts, "attempts")
 }
 
 type PerfectHashFinder struct {
-	TableSize      int
+	TableSizeBits  int
 	DefaultMaxCoef uint
 	// HashLastIndices
 	hashmap []uint
-	mask    uint
 }
 type Coef struct {
-	IndexApplied int  // Index at which hash consumes byte.
+	IndexApplied int  // Index at which hash consumes byte. Negative value indexes from the end.
 	Value        uint // Coefficient value to multiply byte at index.
 	MaxValue     uint
 	StartValue   uint
 	OnlyPow2     bool
+	Op           Token
 }
+
+var ErrNoCoefficientsFound = errors.New("no coefficients found")
 
 func (c *Coef) init() {
 	if c.StartValue == 0 {
 		c.Value = 1
 	} else {
 		c.Value = c.StartValue
+	}
+	if c.Op == 0 {
+		c.Op = TokPlus
 	}
 }
 func (c *Coef) increment() {
@@ -117,31 +93,27 @@ func (c *Coef) increment() {
 }
 func (c *Coef) saturated() bool { return c.Value >= c.MaxValue }
 
-func (phf *PerfectHashFinder) Search(coefs []Coef, inputs []string) error {
-	tblsz := phf.TableSize
-	if tblsz == 0 {
-		return errors.New("zero table size")
+func (phf *PerfectHashFinder) Search(coefs []Coef, inputs []string) (int, error) {
+	if phf.TableSizeBits <= 0 || phf.TableSizeBits > 32 {
+		return 0, errors.New("zero/negative bits for table size or too large")
+	} else if len(coefs) == 0 {
+		return 0, errors.New("require at least one coefficient to find perfect hash")
+	} else if len(inputs) == 0 {
+		return 0, errors.New("zero inputs")
 	}
-	hashmap := make([]uint, tblsz)
-	for i := range coefs {
-		coefs[i].init()
-		if coefs[i].MaxValue == 0 {
-			coefs[i].MaxValue = phf.DefaultMaxCoef
-		}
+	err := phf.ConfigureCoefsWithDefaults(coefs)
+	if err != nil {
+		return 0, err
 	}
+	tblsz := 1 << phf.TableSizeBits
+	phf.hashmap = slices.Grow(phf.hashmap[:0], tblsz)[:tblsz]
+	hashmap := phf.hashmap
 	mask := uint(tblsz) - 1
 	currentAttempt := 0
 	for {
 		currentAttempt++
 		attemptSuccess := true
 		clear(hashmap)
-		allSat := true
-		for i := range coefs {
-			allSat = allSat && coefs[i].saturated()
-		}
-		if allSat {
-			break // We are done.
-		}
 		for _, kw := range inputs {
 			h := phf.apply(mask, coefs, kw)
 			tok := hashmap[h]
@@ -152,30 +124,60 @@ func (phf *PerfectHashFinder) Search(coefs []Coef, inputs []string) error {
 			hashmap[h] = 1
 		}
 		if attemptSuccess {
-			return nil
+			return currentAttempt, nil
 		}
 		coefs[0].increment()
 		for i := 0; coefs[i].saturated() && i < len(coefs)-1; i++ {
-			coefs[i].increment()
+			coefs[i].init()
+			coefs[i+1].increment()
+		}
+		// Check for super-saturation.
+		if coefs[len(coefs)-1].Value > coefs[len(coefs)-1].MaxValue {
+			break
 		}
 	}
-	return errors.New("no coefficients found")
+	return currentAttempt, ErrNoCoefficientsFound
+}
+
+func (phf *PerfectHashFinder) ConfigureCoefsWithDefaults(coefs []Coef) error {
+	for i := range coefs {
+		coefs[i].init()
+		if coefs[i].MaxValue == 0 {
+			if phf.DefaultMaxCoef <= 0 {
+				return errors.New("default max coefficient need be set and positive for input")
+			}
+			coefs[i].MaxValue = phf.DefaultMaxCoef
+		}
+	}
+	return nil
 }
 
 func (phf *PerfectHashFinder) Apply(coefs []Coef, kw string) uint {
-	h := phf.apply(uint(phf.TableSize)-1, coefs, kw)
+	h := phf.apply((1<<phf.TableSizeBits)-1, coefs, kw)
 	return h
 }
 
 func (phf *PerfectHashFinder) apply(mask uint, coefs []Coef, kw string) uint {
 	h := uint(len(kw)) * coefs[len(coefs)-1].Value
-	for i := 1; i < len(coefs)-1; i++ {
+	for i := 0; i < len(coefs)-1; i++ {
 		idx := coefs[i].IndexApplied
-		if idx < 0 && -idx < len(kw) {
-			h += uint(kw[len(kw)+idx]) * coefs[i].Value
+		var a uint
+		if idx < 0 && -idx <= len(kw) {
+			a = uint(kw[len(kw)+idx]) * coefs[i].Value
 		} else if idx >= 0 && idx < len(kw) {
-			h += uint(kw[idx]) * coefs[i].Value
+			a = uint(kw[idx]) * coefs[i].Value
 		}
+		switch coefs[i].Op {
+		case TokPlus:
+			h += a
+		case TokHat:
+			h ^= a
+		case TokAsterisk:
+			h *= a
+		default:
+			panic("unsupported operation")
+		}
+
 	}
 	return h & mask
 }

@@ -18,8 +18,9 @@ const (
 	TokLBracket // [
 	TokRBracket // ]
 	TokPlus     // +
-	TokMinus    // -
+	TokHat      // ^
 	TokAsterisk // *
+	TokMinus    // -
 	TokSlash    // /
 
 	TokIntLit // <integer literal>
@@ -102,6 +103,8 @@ func LookupSingleChar(r rune) (tok Token) {
 		tok = TokSlash
 	case '*':
 		tok = TokAsterisk
+	case '^':
+		tok = TokHat
 	default:
 		tok = TokIDENT
 	}

@@ -18,22 +18,23 @@ func _() {
 	_ = x[TokLBracket-7]
 	_ = x[TokRBracket-8]
 	_ = x[TokPlus-9]
-	_ = x[TokMinus-10]
+	_ = x[TokHat-10]
 	_ = x[TokAsterisk-11]
-	_ = x[TokSlash-12]
-	_ = x[TokIntLit-13]
-	_ = x[TokIDENT-14]
-	_ = x[TokEOF-15]
-	_ = x[keywordBeg-16]
-	_ = x[TokIf-17]
-	_ = x[TokElse-18]
-	_ = x[TokFor-19]
-	_ = x[keywordEnd-20]
+	_ = x[TokMinus-12]
+	_ = x[TokSlash-13]
+	_ = x[TokIntLit-14]
+	_ = x[TokIDENT-15]
+	_ = x[TokEOF-16]
+	_ = x[keywordBeg-17]
+	_ = x[TokIf-18]
+	_ = x[TokElse-19]
+	_ = x[TokFor-20]
+	_ = x[keywordEnd-21]
 }
 
-const _Token_name = "undefinedillegal\\n(){}[]+-*/<integer literal><identifier>EOFkeywordBegifelseforkeywordEnd"
+const _Token_name = "undefinedillegal\\n(){}[]+^*-/<integer literal><identifier>EOFkeywordBegifelseforkeywordEnd"
 
-var _Token_index = [...]uint8{0, 9, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 45, 57, 60, 70, 72, 76, 79, 89}
+var _Token_index = [...]uint8{0, 9, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 46, 58, 61, 71, 73, 77, 80, 90}
 
 func (i Token) String() string {
 	if i >= Token(len(_Token_index)-1) {
