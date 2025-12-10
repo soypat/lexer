@@ -7,6 +7,18 @@ import (
 	"unicode/utf8"
 )
 
+type Token uint
+
+const (
+	TokUndefined Token = iota
+	TokIllegal
+	TokLParen
+	TokRParen
+	TokNewline
+	TokIDENT
+	TokEOF
+)
+
 type Lexer struct {
 	input  bufio.Reader
 	ch     rune    // current character.
