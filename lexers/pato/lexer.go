@@ -9,6 +9,7 @@ import (
 
 // Peek length can be incremented in size and code should still work.
 const peeklen = 1
+const defaultBuflen = 512
 
 type Lexer struct {
 	input  bufio.Reader
@@ -62,10 +63,8 @@ func (l *Lexer) Reset(source string, r io.Reader) error {
 		idbuf:              l.idbuf,
 		source:             source,
 	}
+
 	l.input.Reset(r)
-	if l.idbuf == nil {
-		l.idbuf = make([]byte, 0, 1024)
-	}
 	// Fill up peek and current character.
 	const buflen = len(l.peek)
 	l.col = -buflen + 1 // col is 1 based.
@@ -96,17 +95,29 @@ func (l *Lexer) NextToken() (tok Token, start Pos, literal []byte) {
 		// Single character case.
 		literal = utf8.AppendRune(l.idbuf[l.bufstart():], l.ch)
 		l.advance()
-		return tok, start, literal
+	} else if isDigit(l.ch) {
+		literal = l.readInteger()
+		tok = TokIntLit
+	} else {
+		// We have an identifier in our hands.
+		literal = l.readIdentifier()
+		tok = Lookup(string(literal)) // Should be optimized by compiler to not allocate.
 	}
-	// We have an identifier in our hands.
-	literal = l.readIdentifier()
-	tok = Lookup(string(literal)) // Should be optimized by compiler to not allocate.
 	return tok, start, literal
 }
 
 func (l *Lexer) readIdentifier() []byte {
 	start := l.bufstart()
 	for isIdentifierChar(l.ch) || isDigit(l.ch) {
+		l.idbuf = utf8.AppendRune(l.idbuf, l.ch)
+		l.advance()
+	}
+	return l.idbuf[start:]
+}
+
+func (l *Lexer) readInteger() []byte {
+	start := l.bufstart()
+	for isDigit(l.ch) {
 		l.idbuf = utf8.AppendRune(l.idbuf, l.ch)
 		l.advance()
 	}
@@ -139,6 +150,10 @@ func (l *Lexer) bufstart() int {
 	if l.ReuseLiteralBuffer {
 		l.idbuf = l.idbuf[:0]
 		return 0
+	}
+	free := cap(l.idbuf) - len(l.idbuf)
+	if l.idbuf == nil || cap(l.idbuf) >= defaultBuflen && free < 32 {
+		l.idbuf = make([]byte, 0, defaultBuflen) // Make sure to not grow needlessly on appends.
 	}
 	return len(l.idbuf)
 }

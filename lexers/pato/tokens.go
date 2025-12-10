@@ -20,8 +20,9 @@ const (
 	TokAsterisk // *
 	TokSlash    // /
 
-	TokIDENT // <identifier>
-	TokEOF   // EOF
+	TokIntLit // <integer literal>
+	TokIDENT  // <identifier>
+	TokEOF    // EOF
 
 	// Add keywords between keywordBeg and keywordEnd.
 	keywordBeg
